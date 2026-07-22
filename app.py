@@ -1,4 +1,4 @@
-from flask import Flask, render_template, current_app, Blueprint, url_for, redirect
+from flask import Flask, render_template, current_app, Blueprint, url_for, redirect, request
 from flask_gravatar import Gravatar
 from flask_login import LoginManager
 from markupsafe import Markup
@@ -8,8 +8,12 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy import Integer, String, Text
 from datetime import date
+
+from werkzeug.security import generate_password_hash
+
 from forms import CreatePostForm, RegisterForm
 from flask_login import UserMixin
+
 
 
 app = Flask(__name__)
@@ -36,12 +40,12 @@ class BlogPost(db.Model):
     author: Mapped[str] = mapped_column(String(250), nullable=False)
     img_url: Mapped[str] = mapped_column(String(250), nullable=False)
 
-class User(db.Model):
+class User(UserMixin, db.Model):
     __tablename__ = "users"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    email: Mapped[str] = mapped_column(String, unique=True, nullable=False)
-    password: Mapped[str] = mapped_column(String, unique=True, nullable=False)
-    name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    email: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    password: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
 
 
 with app.app_context():
@@ -52,10 +56,16 @@ with app.app_context():
 def register():
     form = RegisterForm()
     if form.validate_on_submit():
+        # Hashing and Salting the password entered by user
+        hash_and_salted_password = generate_password_hash(
+            form.password.data,
+            method='pbkdf2:sha256',
+            salt_length=8
+        )
         new_user = User(
+            name=form.name.data,
             email = form.email.data,
-            password = form.password.data,
-            name = form.name.data
+            password = hash_and_salted_password,
         )
         db.session.add(new_user)
         db.session.commit()
