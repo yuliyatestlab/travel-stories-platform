@@ -1,11 +1,14 @@
 from flask import Flask, render_template, current_app, Blueprint, url_for, redirect
+from flask_gravatar import Gravatar
+from flask_login import LoginManager
 from markupsafe import Markup
 from flask_bootstrap import Bootstrap
+from flask_ckeditor import CKEditor
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy import Integer, String, Text
 from datetime import date
-from forms import CreatePostForm
+from forms import CreatePostForm, RegisterForm
 from flask_login import UserMixin
 
 
@@ -24,6 +27,7 @@ db.init_app(app)
 
 #  CONFIGURE TABLE
 class BlogPost(db.Model):
+    __tablename__ = "blog_posts"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     title: Mapped[str] = mapped_column(String(250), unique=True, nullable=False)
     subtitle: Mapped[str] = mapped_column(String(250), nullable=False)
@@ -32,10 +36,31 @@ class BlogPost(db.Model):
     author: Mapped[str] = mapped_column(String(250), nullable=False)
     img_url: Mapped[str] = mapped_column(String(250), nullable=False)
 
+class User(db.Model):
+    __tablename__ = "users"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    email: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    password: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+
+
 with app.app_context():
     db.create_all()
 
-
+# Register new user
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    form = RegisterForm()
+    if form.validate_on_submit():
+        new_user = User(
+            email = form.email.data,
+            password = form.password.data,
+            name = form.name.data
+        )
+        db.session.add(new_user)
+        db.session.commit()
+        return redirect(url_for('get_all_posts'))
+    return render_template('register.html', form=form)
 @app.route('/')
 def get_all_posts():
     # Query the database for all the posts. Convert the data to a python list.
@@ -67,7 +92,7 @@ def add_new_post():
     return render_template("make-post.html", form=form)
 
 # Editing an existing post
-@app.route('edit-post/<int:post_id>', methods=['GET', 'POST'])
+@app.route('/edit-post/<int:post_id>', methods=['GET', 'POST'])
 def edit_post(post_id):
     post = db.get_or_404(BlogPost, post_id)
     edit_form = CreatePostForm(
@@ -89,7 +114,7 @@ def edit_post(post_id):
     return render_template("make-post.html", form=edit_form, is_edit=True)
 
 # Delete post
-@app.route('delete/<int: post_id>')
+@app.route('/delete/<int:post_id>')
 def delete_post(post_id):
     post_to_delete = db.get_or_404(BlogPost, post_id)
     db.session.delete(post_to_delete)
