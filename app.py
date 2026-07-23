@@ -9,7 +9,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy import Integer, String, Text
 from datetime import date
 
-from sqlalchemy.sql.functions import user
+from sqlalchemy.sql.functions import user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from forms import CreatePostForm, RegisterForm, LoginForm
@@ -87,7 +87,7 @@ def register():
         #  Authenticate the user with Flask-Login
         login_user(new_user)
         return redirect(url_for('get_all_posts'))
-    return render_template('register.html', form=form)
+    return render_template('register.html', form=form, current_user=current_user)
 
 # Retrieve a user from the database based on their email
 @app.route('/login')
@@ -111,20 +111,24 @@ def login():
             login_user(user)
             return redirect(url_for('get_all_posts'))
 
-    return render_template("login.html", form=form)
+    return render_template("login.html", form=form, current_user=current_user)
+
+@app.route('/logout')
+def logout():
+    return redirect(url_for('get_all_posts'))
 
 @app.route('/')
 def get_all_posts():
     # Query the database for all the posts. Convert the data to a python list.
     result = db.session.execute(db.select(BlogPost).order_by(BlogPost.date))
     posts = result.scalars().all()
-    return render_template("index.html", all_posts=posts)
+    return render_template("index.html", all_posts=posts, current_user=current_user)
 
 @app.route('/post/<int:post_id>')
 def show_post(post_id):
     #  Retrieve a BlogPost from the database based on the post_id.
     requested_post = db.get_or_404(BlogPost, post_id)
-    return render_template("post.html", post=requested_post)
+    return render_template("post.html", post=requested_post, current_user=current_user)
 
 @app.route('/new-post', methods=['GET', 'POST'])
 def add_new_post():
@@ -141,7 +145,7 @@ def add_new_post():
         db.session.add(new_post)
         db.session.commit()
         return redirect(url_for('get_all_posts'))
-    return render_template("make-post.html", form=form)
+    return render_template("make-post.html", form=form, current_user=current_user)
 
 # Editing an existing post
 @app.route('/edit-post/<int:post_id>', methods=['GET', 'POST'])
@@ -163,7 +167,7 @@ def edit_post(post_id):
 
         db.session.commit()
         return redirect(url_for('show_post', post_id=post.id))
-    return render_template("make-post.html", form=edit_form, is_edit=True)
+    return render_template("make-post.html", form=edit_form, is_edit=True, current_user=current_user)
 
 # Delete post
 @app.route('/delete/<int:post_id>')
@@ -176,11 +180,11 @@ def delete_post(post_id):
 
 @app.route('/about')
 def about():
-    return render_template('about.html')
+    return render_template('about.html', current_user=current_user)
 
 @app.route('/contact')
 def contact():
-    return render_template('contact.html')
+    return render_template('contact.html', current_user=current_user)
 
 if __name__ == "__main__":
     app.run(debug=True)
