@@ -5,9 +5,14 @@ from flask_ckeditor import CKEditorField
 
 class RegisterForm(FlaskForm):
     email = StringField("Email", validators=[DataRequired()])
-    password = StringField("Password", validators=[DataRequired()])
+    password = PasswordField("Password", validators=[DataRequired()])
     name = StringField("Name", validators=[DataRequired()])
     submit = SubmitField("SIGN UP")
+
+class LoginForm(FlaskForm):
+    email = StringField("Email", validators=[DataRequired()])
+    password = PasswordField("Password", validators=[DataRequired()])
+    submit = SubmitField("LOG IN")
 
 class CreatePostForm(FlaskForm):
     title = StringField("Blog Post Title", validators=[DataRequired()])

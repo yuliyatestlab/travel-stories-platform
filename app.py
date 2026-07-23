@@ -1,6 +1,6 @@
-from flask import Flask, render_template, current_app, Blueprint, url_for, redirect, request
+from flask import Flask, render_template, current_app, Blueprint, url_for, redirect, request, flash
 from flask_gravatar import Gravatar
-from flask_login import LoginManager
+from flask_login import LoginManager, login_manager
 from markupsafe import Markup
 from flask_bootstrap import Bootstrap
 from flask_ckeditor import CKEditor
@@ -9,18 +9,25 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy import Integer, String, Text
 from datetime import date
 
-from werkzeug.security import generate_password_hash
+from sqlalchemy.sql.functions import user
+from werkzeug.security import generate_password_hash, check_password_hash
 
-from forms import CreatePostForm, RegisterForm
-from flask_login import UserMixin
+from forms import CreatePostForm, RegisterForm, LoginForm
+from flask_login import UserMixin, LoginManager, login_user
 
 
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = '8BYkEfBA6O6donzWlSihBXox7C0sKR6b'
+ckeditor = CKEditor(app)
 Bootstrap(app)
 
-ckeditor = CKEditor(app)
+login_manager = LoginManager()
+login_manager.init_app(app)
+
+@login_manager.user_loader
+def load_user(user_id):
+    return db.get_or_404(User, user_id)
 
 # CREATE DATABASE
 class Base(DeclarativeBase):
@@ -56,6 +63,14 @@ with app.app_context():
 def register():
     form = RegisterForm()
     if form.validate_on_submit():
+        #  Check if user email is already present in the database
+        result = db.session.execute(db.select(User).where(User.email == form.email.data))
+        user.result.scalar()
+        if user:
+            #  User already exists
+            flash("You've already signed up with that email, log in instead")
+            return redirect(url_for('login'))
+
         # Hashing and Salting the password entered by user
         hash_and_salted_password = generate_password_hash(
             form.password.data,
@@ -69,8 +84,35 @@ def register():
         )
         db.session.add(new_user)
         db.session.commit()
+        #  Authenticate the user with Flask-Login
+        login_user(new_user)
         return redirect(url_for('get_all_posts'))
     return render_template('register.html', form=form)
+
+# Retrieve a user from the database based on their email
+@app.route('/login')
+def login():
+    form = LoginForm()
+    if form.validate_on_submit():
+        email = form.email.data
+        password = form.password.data
+        result = db.session.execute(db.select(User).where(User.email == email))
+        # Email in db is unique so will only have one result.
+        user = result.scalar()
+        #  Email doesn't exist
+        if not user:
+            flash("That email does not exist, please try again.")
+            return redirect(url_for('login'))
+        #  Password incorrect
+        elif not check_password_hash(user.password, password):
+            flash("Password incorrect, please try again.")
+            return redirect(url_for('login'))
+        else:
+            login_user(user)
+            return redirect(url_for('get_all_posts'))
+
+    return render_template("login.html", form=form)
+
 @app.route('/')
 def get_all_posts():
     # Query the database for all the posts. Convert the data to a python list.
