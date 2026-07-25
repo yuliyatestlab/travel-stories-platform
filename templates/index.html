@@ -7,7 +7,7 @@
                     <div class="col-md-10 col-lg-8 col-xl-7">
                         <div class="site-heading">
                             <h1>Yuliya's Travel Stories</h1>
-                            <span class="subheading">Yuliya's Travel Stories</span>
+                            <span class="subheading">A collection of travel stories.</span>
                         </div>
                     </div>
                 </div>
@@ -32,12 +32,23 @@
                             Posted by
                             <a href="#!">{{ post.author }}</a>
                             on {{ post.date }}
+                            <!--Only show delete button if user id is 1 (admin user)-->
+                            {% if current_user.id == 1 %}
                             <a href="{{ url_for('delete_post', post_id=post.id) }}">X</a>
+                            {% endif %}
                         </p>
                     </div>
                     <!-- Divider-->
                     <hr class="my-4" />
                     {% endfor %}
+
+                    <!--New Post-->
+                    <!--only show Create Post button if user id is 1 (admin user)-->
+                    {% if current_user.id == 1 %}
+                    <div class="d-flex justify-content-end mb-4">
+                        <a class="btn btn-primary float-right" href="{{ url_for('add_new_post') }}">Create new Post</a>
+                    </div>
+                    {% endif %}
 
                     <!-- Pager-->
                     <div class="d-flex justify-content-end mb-4"><a class="btn btn-primary text-uppercase" href="#!">Older Posts →</a></div>
