@@ -5,8 +5,8 @@ from markupsafe import Markup
 from flask_bootstrap import Bootstrap
 from flask_ckeditor import CKEditor
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import Integer, String, Text
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy import Integer, String, Text, ForeignKey
 from datetime import date
 
 from sqlalchemy.sql.functions import user, current_user
@@ -38,22 +38,27 @@ db = SQLAlchemy(model_class=Base)
 db.init_app(app)
 
 #  CONFIGURE TABLE
-class BlogPost(db.Model):
-    __tablename__ = "blog_posts"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    title: Mapped[str] = mapped_column(String(250), unique=True, nullable=False)
-    subtitle: Mapped[str] = mapped_column(String(250), nullable=False)
-    date: Mapped[str] = mapped_column(String(250), nullable=False)
-    body: Mapped[str] = mapped_column(Text, nullable=False)
-    author: Mapped[str] = mapped_column(String(250), nullable=False)
-    img_url: Mapped[str] = mapped_column(String(250), nullable=False)
-
 class User(UserMixin, db.Model):
     __tablename__ = "users"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     email: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
-    password: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
-    name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    password: Mapped[str] = mapped_column(String(100), nullable=False)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    #  The "author" refers a List of BlogPost objects attached to each User
+    posts = relationship("BlogPost", back_populates="author")
+
+class BlogPost(db.Model):
+    __tablename__ = "blog_posts"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    #  Create Foreign Key, "users.id" the users refers to the tablename of User
+    author_id: Mapped[int] = mapped_column(Integer, db.ForeignKey("users.id"))
+    #  Create reference to the User object. the "posts" refers to the posts property in the User class
+    author = relationship("User", back_populates="posts")
+    title: Mapped[str] = mapped_column(String(250), unique=True, nullable=False)
+    subtitle: Mapped[str] = mapped_column(String(250), nullable=False)
+    date: Mapped[str] = mapped_column(String(250), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    img_url: Mapped[str] = mapped_column(String(250), nullable=False)
 
 
 with app.app_context():
@@ -66,7 +71,7 @@ def register():
     if form.validate_on_submit():
         #  Check if user email is already present in the database
         result = db.session.execute(db.select(User).where(User.email == form.email.data))
-        user.result.scalar()
+        user = result.scalar()
         if user:
             #  User already exists
             flash("You've already signed up with that email, log in instead")
@@ -145,7 +150,7 @@ def admin_only(f):
 @app.route('/new-post', methods=['GET', 'POST'])
 @admin_only
 def add_new_post():
-    form = CreatePostForm
+    form = CreatePostForm()
     if form.validate_on_submit():
         new_post = BlogPost(
             title = form.title.data,
@@ -175,8 +180,8 @@ def edit_post(post_id):
     if edit_form.validate_on_submit():
         post.title = edit_form.title.data
         post.subtitle = edit_form.subtitle.data
-        post.img_url = edit_post.img_url.data
-        post.author = edit_post.author.data
+        post.img_url = edit_form.img_url.data
+        post.author = edit_form.author.data
         post.body = edit_form.body.data
 
         db.session.commit()
