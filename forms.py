@@ -14,13 +14,13 @@ class LoginForm(FlaskForm):
     password = PasswordField("Password", validators=[DataRequired()])
     submit = SubmitField("LOG IN")
 
-class CreatePostForm(FlaskForm):
-    title = StringField("Blog Post Title", validators=[DataRequired()])
-    subtitle = StringField("Subtitle", validators=[DataRequired()])
-    author = StringField("Your Name", validators=[DataRequired()])
-    img_url = StringField("Blog Image URL", validators=[DataRequired(), URL()])
-    body = CKEditorField("Blog Content", validators=[DataRequired()])
-    submit = SubmitField("Submit Post")
+class CreateTravelStoryForm(FlaskForm):
+    country = StringField("Country", validators=[DataRequired()])
+    city = StringField("City", validators=[DataRequired()])
+    title = StringField("Title", validators=[DataRequired()])
+    story = CKEditorField("Story", validators=[DataRequired()])
+    main_image = StringField("Story Image URL", validators=[DataRequired(), URL()])
+    submit = SubmitField("Publish Story")
 
 class CommentForm(FlaskForm):
     comment_text = CKEditorField("Comment", validators=[DataRequired()])

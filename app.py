@@ -12,7 +12,7 @@ from datetime import date
 from sqlalchemy.sql.functions import user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from forms import CreatePostForm, RegisterForm, LoginForm, CommentForm
+from forms import CreateTravelStoryForm, RegisterForm, LoginForm, CommentForm
 from flask_login import UserMixin, LoginManager, login_user
 from functools import wraps
 
@@ -45,20 +45,24 @@ class User(UserMixin, db.Model):
     password: Mapped[str] = mapped_column(String(100), nullable=False)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     #  The "author" refers a List of BlogPost objects attached to each User
-    posts = relationship("BlogPost", back_populates="author")
+    posts = relationship("TravelStory", back_populates="author")
 
-class BlogPost(db.Model):
-    __tablename__ = "blog_posts"
+class TravelStory(db.Model):
+    __tablename__ = "travel_stories"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    #  Geography
+    country: Mapped[str] = mapped_column(String(100), nullable=False)
+    city: Mapped[str] = mapped_column(String(100), nullable=False)
+    #  Main information
+    title: Mapped[str] = mapped_column(String(250), nullable=False)
+    story: Mapped[str] = mapped_column(Text, nullable=False)
+    # Photo
+    main_image: Mapped[str] = mapped_column(String(250), nullable=False)
+    date: Mapped[str] = mapped_column(String(250), nullable=False)
     #  Create Foreign Key, "users.id" the users refers to the tablename of User
     author_id: Mapped[int] = mapped_column(Integer, db.ForeignKey("users.id"))
     #  Create reference to the User object. the "posts" refers to the posts property in the User class
-    author = relationship("User", back_populates="posts")
-    title: Mapped[str] = mapped_column(String(250), unique=True, nullable=False)
-    subtitle: Mapped[str] = mapped_column(String(250), nullable=False)
-    date: Mapped[str] = mapped_column(String(250), nullable=False)
-    body: Mapped[str] = mapped_column(Text, nullable=False)
-    img_url: Mapped[str] = mapped_column(String(250), nullable=False)
+    author = relationship("User", back_populates="stories")
 
 
 with app.app_context():
@@ -126,14 +130,14 @@ def logout():
 @app.route('/')
 def get_all_posts():
     # Query the database for all the posts. Convert the data to a python list.
-    result = db.session.execute(db.select(BlogPost).order_by(BlogPost.date))
+    result = db.session.execute(db.select(TravelStory).order_by(TravelStory.date))
     posts = result.scalars().all()
     return render_template("index.html", all_posts=posts, current_user=current_user)
 
 @app.route('/post/<int:post_id>')
 def show_post(post_id):
     #  Retrieve a BlogPost from the database based on the post_id.
-    requested_post = db.get_or_404(BlogPost, post_id)
+    requested_post = db.get_or_404(TravelStory, post_id)
     #  Add the CommentForm to the route
     comment_form = CommentForm()
     return render_template("post.html", post=requested_post, current_user=current_user, form=comment_form)
@@ -149,30 +153,31 @@ def admin_only(f):
         return f(*args, **kwargs)
     return decorated_function
 
-@app.route('/new-post', methods=['GET', 'POST'])
-@admin_only
-def add_new_post():
-    form = CreatePostForm()
+@app.route('/new-story', methods=['GET', 'POST'])
+@login_required
+def add_new_story():
+    form = CreateTravelStoryForm()
     if form.validate_on_submit():
-        new_post = BlogPost(
+        new_story = TravelStory(
+            country=form.country.data,
+            city=form.city.data,
             title = form.title.data,
-            subtitle = form.subtitle.data,
-            body = form.body.data,
-            img_url=form.img_url.data,
-            author = form.author.data,
+            story = form.story.data,
+            main_image=form.main_image.data,
+            author = current_user,
             date = date.today().strftime("%B %d, %Y"),
         )
-        db.session.add(new_post)
+        db.session.add(new_story)
         db.session.commit()
-        return redirect(url_for('get_all_posts'))
-    return render_template("make-post.html", form=form, current_user=current_user)
+        return redirect(url_for('get_all_stories'))
+    return render_template("add-story.html", form=form, current_user=current_user)
 
 # Editing an existing post
 @app.route('/edit-post/<int:post_id>', methods=['GET', 'POST'])
 @admin_only
 def edit_post(post_id):
-    post = db.get_or_404(BlogPost, post_id)
-    edit_form = CreatePostForm(
+    post = db.get_or_404(TravelStory, post_id)
+    edit_form = CreateTravelStoryForm(
         title=post.title,
         subtitle=post.subtitle,
         img_url=post.img_url,
@@ -188,13 +193,13 @@ def edit_post(post_id):
 
         db.session.commit()
         return redirect(url_for('show_post', post_id=post.id))
-    return render_template("make-post.html", form=edit_form, is_edit=True, current_user=current_user)
+    return render_template("add-story.html", form=edit_form, is_edit=True, current_user=current_user)
 
 # Delete post
 @app.route('/delete/<int:post_id>')
 @admin_only
 def delete_post(post_id):
-    post_to_delete = db.get_or_404(BlogPost, post_id)
+    post_to_delete = db.get_or_404(TravelStory, post_id)
     db.session.delete(post_to_delete)
     db.session.commit()
     return redirect(url_for('get_all_posts'))
