@@ -12,7 +12,7 @@ from datetime import date
 from sqlalchemy.sql.functions import user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from forms import CreatePostForm, RegisterForm, LoginForm
+from forms import CreatePostForm, RegisterForm, LoginForm, CommentForm
 from flask_login import UserMixin, LoginManager, login_user
 from functools import wraps
 
@@ -134,7 +134,9 @@ def get_all_posts():
 def show_post(post_id):
     #  Retrieve a BlogPost from the database based on the post_id.
     requested_post = db.get_or_404(BlogPost, post_id)
-    return render_template("post.html", post=requested_post, current_user=current_user)
+    #  Add the CommentForm to the route
+    comment_form = CommentForm()
+    return render_template("post.html", post=requested_post, current_user=current_user, form=comment_form)
 
 #  Admin-only decorator
 def admin_only(f):

@@ -24,7 +24,7 @@
                     <div class="col-md-10 col-lg-8 col-xl-7">
                         {{ post.body|safe }}
                         <!--Only show Edit Post button if user id is 1 (admin user)-->
-                        {% if current_user.id == 1%}
+                        {% if current_user.id == 1 %}
                         <div class="d-flex justify-content-end mb-4">
                             <!--Editing post-->
                             <a
@@ -39,7 +39,7 @@
                             <ul class="commentList">
                                 <li>
                                     <div class="commentImage">
-                                        <img src="../static/assets/img/defaulte-profile.jpg"/>
+                                        <img src="{{ url_for('static', filename='assets/img/defaulte-profile.jpg') }}"/>
                                     </div>
                                     <div class="commentText">
                                         <p>Some comment</p>
