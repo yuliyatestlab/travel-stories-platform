@@ -170,7 +170,7 @@ def add_new_story():
         db.session.add(new_story)
         db.session.commit()
         return redirect(url_for('get_all_stories'))
-    return render_template("add-story.html", form=form, current_user=current_user)
+    return render_template("edit-story.html", form=form, current_user=current_user)
 
 # Editing an existing story
 @app.route('/edit-story/<int:story_id>', methods=['GET', 'POST'])
@@ -193,7 +193,7 @@ def edit_story(story_id):
 
         db.session.commit()
         return redirect(url_for('show_story', story_id=story.id))
-    return render_template("add-story.html", form=edit_form, is_edit=True, current_user=current_user)
+    return render_template("edit-story.html", form=edit_form, is_edit=True, current_user=current_user)
 
 # Delete story
 @app.route('/delete/<int:story_id>')
