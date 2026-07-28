@@ -42,7 +42,7 @@ class User(UserMixin, db.Model):
     email: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     password: Mapped[str] = mapped_column(String(100), nullable=False)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
-    #  The "author" refers a List of BlogPost objects attached to each User
+    #  The "author" refers a List of Travel Story objects attached to each User
     stories = relationship("TravelStory", back_populates="author")
 
 class TravelStory(db.Model):
@@ -59,8 +59,21 @@ class TravelStory(db.Model):
     date: Mapped[str] = mapped_column(String(250), nullable=False)
     #  Create Foreign Key, "users.id" the users refers to the tablename of User
     author_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
-    #  Create reference to the User object. the "posts" refers to the posts property in the User class
+    #  Create reference to the User object. the "stories" refers to the stories property in the User class
     author = relationship("User", back_populates="stories")
+
+class Comment(db.Model):
+    __tablename__ = "comments"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    comment_text: Mapped[str] = mapped_column(Text, nullable=False)
+    #  Create Foreign Key,+ user.id
+    comment_author_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
+    comment_author = relationship("User", back_populates="comments")
+    # Foreign Key → travel_stories.id
+    story_id: Mapped[int] = mapped_column(Integer, ForeignKey("travel_stories.id"))
+    parent_story = relationship("TravelStory", back_populates="comments")
+
+
 
 
 with app.app_context():
@@ -138,6 +151,17 @@ def show_story(story_id):
     requested_story = db.get_or_404(TravelStory, story_id)
     #  Add the CommentForm to the route
     comment_form = CommentForm()
+
+    if comment_form.validate_on_submit() and current_user.is_authenticated:
+        new_comment = Comment(
+            comment_text=comment_form.comment_text.data,
+            comment_author=current_user,
+            parent_story=requested_story,
+        )
+        db.session.add(new_comment)
+        db.session.commit()
+        return redirect(url_for("show_story", story_id=story_id))
+
     return render_template("story.html", story=requested_story, current_user=current_user, form=comment_form)
 
 #  Admin-only decorator
