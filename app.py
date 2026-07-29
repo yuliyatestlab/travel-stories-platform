@@ -44,6 +44,9 @@ class User(UserMixin, db.Model):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     #  The "author" refers a List of Travel Story objects attached to each User
     stories = relationship("TravelStory", back_populates="author")
+    #  Relationship with Comments
+    comments = relationship("Comment", back_populates="comment_author")
+
 
 class TravelStory(db.Model):
     __tablename__ = "stories"
@@ -61,6 +64,9 @@ class TravelStory(db.Model):
     author_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     #  Create reference to the User object. the "stories" refers to the stories property in the User class
     author = relationship("User", back_populates="stories")
+    #  Relationship with Comments
+    comments = relationship("Comment", back_populates="parent_story")
+
 
 class Comment(db.Model):
     __tablename__ = "comments"
@@ -70,7 +76,7 @@ class Comment(db.Model):
     comment_author_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     comment_author = relationship("User", back_populates="comments")
     # Foreign Key → travel_stories.id
-    story_id: Mapped[int] = mapped_column(Integer, ForeignKey("travel_stories.id"))
+    story_id: Mapped[int] = mapped_column(Integer, ForeignKey("stories.id"))
     parent_story = relationship("TravelStory", back_populates="comments")
 
 
