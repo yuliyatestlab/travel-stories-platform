@@ -12,9 +12,10 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from forms import CreateTravelStoryForm, RegisterForm, LoginForm, CommentForm
 from flask_login import UserMixin, LoginManager, login_user, login_required, current_user
 from functools import wraps
+import os
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = '8BYkEfBA6O6donzWlSihBXox7C0sKR6b'
+app.config['SECRET_KEY'] = os.environ.get('FLASK_KEY')
 ckeditor = CKEditor(app)
 Bootstrap(app)
 
@@ -28,7 +29,7 @@ def load_user(user_id):
 # CREATE DATABASE
 class Base(DeclarativeBase):
     pass
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///travel_stories.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DB_URI', 'sqlite:///travel_stories.db')
 db = SQLAlchemy(model_class=Base)
 db.init_app(app)
 
