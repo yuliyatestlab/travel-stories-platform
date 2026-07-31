@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: travel-stories-platform
+    env: python
+    plan: free
+    region: francfurt
+
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+
+    pythonVersion: 3.11
+
+    envVars:
+      - key: FLASK_KEY
+        sync: false
+      - key: DB_URI
+        sync: false
