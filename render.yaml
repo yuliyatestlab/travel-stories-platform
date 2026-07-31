@@ -2,6 +2,7 @@ services:
   - type: web
     name: travel-stories-platform
     env: python
+    plan: free
     region: frankfurt
 
     buildCommand: pip install -r requirements.txt
