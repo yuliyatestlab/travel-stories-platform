@@ -1,7 +1,7 @@
 from flask import Flask, render_template, current_app, Blueprint, url_for, redirect, request, flash, abort, session
 from markupsafe import Markup
 from flask_bootstrap import Bootstrap
-from flask_ckeditor import CKEditor
+
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy import Integer, String, Text, ForeignKey, Boolean
@@ -15,7 +15,7 @@ import os
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('FLASK_KEY', '8BYkEfBA6O6donzWlSihBXox7C0sKR6b')
-ckeditor = CKEditor(app)
+
 Bootstrap(app)
 
 login_manager = LoginManager()
