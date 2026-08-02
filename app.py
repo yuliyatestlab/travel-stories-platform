@@ -1,6 +1,4 @@
 from flask import Flask, render_template, current_app, Blueprint, url_for, redirect, request, flash, abort, session
-from flask_gravatar import Gravatar
-from markupsafe import Markup
 from flask_bootstrap import Bootstrap
 from flask_ckeditor import CKEditor
 from flask_sqlalchemy import SQLAlchemy
