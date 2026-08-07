@@ -1,17 +1,26 @@
 from flask import Flask, render_template, current_app, Blueprint, url_for, redirect, request, flash, abort, session
 from markupsafe import Markup
 from flask_bootstrap import Bootstrap
-
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-from sqlalchemy import Integer, String, Text, ForeignKey, Boolean
 from datetime import date
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from forms import CreateTravelStoryForm, RegisterForm, LoginForm, CommentForm
-from flask_login import UserMixin, LoginManager, login_user, login_required, current_user
+from flask_login import UserMixin, LoginManager, login_user, login_required, current_user, logout_user
 from functools import wraps
 import os
+from supabase import create_client
+from dotenv import load_dotenv
+
+load_dotenv(dotenv_path="/home/yuliyatestlab/travel-stories-platform/.env")
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_PUBLISHABLE_KEY")
+
+print("DEBUG SUPABASE_URL:", SUPABASE_URL)
+print("DEBUG SUPABASE_KEY:", SUPABASE_KEY)
+
+
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('FLASK_KEY', '8BYkEfBA6O6donzWlSihBXox7C0sKR6b')
@@ -23,74 +32,39 @@ login_manager.init_app(app)
 
 @login_manager.user_loader
 def load_user(user_id):
-    return db.get_or_404(User, user_id)
+    result = supabase.table("users").select("*").eq("id", user_id).execute()
+    user_data = result.data[0] if result.data else None
 
-# CREATE DATABASE
-class Base(DeclarativeBase):
-    pass
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DB_URI', 'sqlite:///travel_stories.db')
-db = SQLAlchemy(model_class=Base)
-db.init_app(app)
+    if not user_data:
+        return None
 
-#  CONFIGURE TABLE
-class User(UserMixin, db.Model):
-    __tablename__ = "users"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
-    email: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
-    password: Mapped[str] = mapped_column(String(100), nullable=False)
-    name: Mapped[str] = mapped_column(String(100), nullable=False)
-    #  The "author" refers a List of Travel Story objects attached to each User
-    stories = relationship("TravelStory", back_populates="author")
-    #  Relationship with Comments
-    comments = relationship("Comment", back_populates="comment_author")
+    #  Create user object
+    return User(
+        id=user_data["id"],
+        name=user_data["name"],
+        email=user_data["email"],
+        password=user_data["password"],
+        is_admin=user_data.get("is_admin", False),
+    )
 
 
-class TravelStory(db.Model):
-    __tablename__ = "stories"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    #  Geography
-    country: Mapped[str] = mapped_column(String(100), nullable=False)
-    city: Mapped[str] = mapped_column(String(100), nullable=False)
-    #  Main information
-    title: Mapped[str] = mapped_column(String(250), nullable=False)
-    story: Mapped[str] = mapped_column(Text, nullable=False)
-    # Photo
-    main_image: Mapped[str] = mapped_column(String(250), nullable=False)
-    date: Mapped[str] = mapped_column(String(250), nullable=False)
-    #  Create Foreign Key, "users.id" the users refers to the tablename of User
-    author_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
-    #  Create reference to the User object. the "stories" refers to the stories property in the User class
-    author = relationship("User", back_populates="stories")
-    #  Relationship with Comments
-    comments = relationship("Comment", back_populates="parent_story")
+class User(UserMixin):
+    def __init__(self, id, name, email, password, is_admin=False):
+        self.id = id
+        self.name = name
+        self.email = email
+        self.password = password
+        self.is_admin = is_admin
 
-
-class Comment(db.Model):
-    __tablename__ = "comments"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    comment_text: Mapped[str] = mapped_column(Text, nullable=False)
-    #  Create Foreign Key,+ user.id
-    comment_author_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
-    comment_author = relationship("User", back_populates="comments")
-    # Foreign Key → travel_stories.id
-    story_id: Mapped[int] = mapped_column(Integer, ForeignKey("stories.id"))
-    parent_story = relationship("TravelStory", back_populates="comments")
-
-
-
-
-with app.app_context():
-    db.create_all()
 
 # Register new user
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     form = RegisterForm()
     if form.validate_on_submit():
-        #  Check if user email is already present in the database
-        result = db.session.execute(db.select(User).where(User.email == form.email.data))
-        user = result.scalar()
+        #  Check if user email is already present in the Supabase
+        result = supabase.table("users").select("*").eq("email", form.email.data).execute()
+        user = result.data[0] if result.data else None
         if user:
             #  User already exists
             flash("You've already signed up with that email, log in instead")
@@ -102,13 +76,23 @@ def register():
             method='pbkdf2:sha256',
             salt_length=8
         )
+        #  Insert new user into Supabase
+        insert_result = supabase.table("users").insert({
+            "name": form.name.data,
+            "email": form.email.data,
+            "password": hash_and_salted_password
+        }).execute()
+
+        new_user_data = insert_result.data[0]
+        #  Create User object for Flask-Login
         new_user = User(
-            name=form.name.data,
-            email = form.email.data,
-            password = hash_and_salted_password,
+            id=new_user_data["id"],
+            name=new_user_data["name"],
+            email=new_user_data["email"],
+            password=new_user_data["password"],
+            is_admin=new_user_data.get("is_admin", False)
         )
-        db.session.add(new_user)
-        db.session.commit()
+
         #  Authenticate the user with Flask-Login
         login_user(new_user)
         return redirect(url_for('get_all_stories'))
@@ -121,53 +105,88 @@ def login():
     if form.validate_on_submit():
         email = form.email.data
         password = form.password.data
-        result = db.session.execute(db.select(User).where(User.email == email))
-        # Email in db is unique so will only have one result.
-        user = result.scalar()
+        #  Check if user exists in Supabase
+        result = supabase.table("users").select("*").eq("email", email).execute()
+        user = result.data[0] if result.data else None
         #  Email doesn't exist
         if not user:
             flash("That email does not exist, please try again.")
             return redirect(url_for('login'))
         #  Password incorrect
-        elif not check_password_hash(user.password, password):
+        elif not check_password_hash(user["password"], password):
             flash("Password incorrect, please try again.")
             return redirect(url_for('login'))
         else:
-            login_user(user)
+            #  Create User object for Flask-Login
+            logged_user = User(
+                id=user["id"],
+                name=user["name"],
+                email=user["email"],
+                password=user["password"],
+                is_admin=user.get("is_admin", False)
+            )
+            login_user(logged_user)
             return redirect(url_for('get_all_stories'))
 
     return render_template("login.html", form=form, current_user=current_user)
 
 @app.route('/logout')
 def logout():
+    logout_user()
     session.clear()
     return redirect(url_for('get_all_stories'))
 
 @app.route('/')
 def get_all_stories():
-    # Query the database for all the stories. Convert the data to a python list.
-    result = db.session.execute(db.select(TravelStory).order_by(TravelStory.date))
-    stories = result.scalars().all()
+    # Query Supabase for all the stories. Convert the data to a python list.
+    result = supabase.table("stories").select("*").order("date").execute()
+    stories = result.data if result.data else []
+    # Attach author name to each story
+    for story in stories:
+        author_result = supabase.table("users").select("name").eq("id", story["author_id"]).execute()
+        story["author_name"] = author_result.data[0]["name"] if author_result.data else "Unknown"
     return render_template("index.html", all_stories=stories, current_user=current_user)
 
 @app.route('/story/<int:story_id>')
 def show_story(story_id):
-    #  Retrieve a BlogPost from the database based on the post_id.
-    requested_story = db.get_or_404(TravelStory, story_id)
+    #  Get story from Supabase.
+    result = supabase.table("stories").select("*").eq("id", story_id).execute()
+    if not result.data:
+        abort(404)
+
+    requested_story = result.data[0]
+
+    # Attach author name
+    author_result = supabase.table("users").select("name").eq("id", requested_story["author_id"]).execute()
+    requested_story["author_name"] = author_result.data[0]["name"] if author_result.data else "Unknown"
+
+    if not requested_story:
+        abort(404)
+
     #  Add the CommentForm to the route
     comment_form = CommentForm()
 
     if comment_form.validate_on_submit() and current_user.is_authenticated:
-        new_comment = Comment(
-            comment_text=comment_form.comment_text.data,
-            comment_author=current_user,
-            parent_story=requested_story,
-        )
-        db.session.add(new_comment)
-        db.session.commit()
+        new_comment_text = comment_form.comment_text.data
+        #  Insert comment into Supabase
+        insert_result = supabase.table("comments").insert({
+            "comment_text": new_comment_text,
+            "comment_author_id": current_user.id,
+            "story_id": story_id,
+        }).execute()
+
         return redirect(url_for("show_story", story_id=story_id))
 
-    return render_template("story.html", story=requested_story, current_user=current_user, form=comment_form)
+    #  Retrieve comment for this story
+    comments_result = supabase.table("comments").select("*").eq("story_id", story_id).execute()
+    comments = comments_result.data if comments_result.data else []
+
+    #  Attach author name to each comment
+    for comment in comments:
+        author_result = supabase.table("users").select("name").eq("id", comment["comment_author_id"]).execute()
+        comment["author_name"] = author_result.data[0]["name"] if author_result.data else "Unknown"
+
+    return render_template("story.html", story=requested_story, comments=comments, current_user=current_user, form=comment_form)
 
 #  Admin-only decorator
 def admin_only(f):
@@ -186,51 +205,71 @@ def admin_only(f):
 @login_required
 def add_new_story():
     form = CreateTravelStoryForm()
+
     if form.validate_on_submit():
-        new_story = TravelStory(
-            country=form.country.data,
-            city=form.city.data,
-            title = form.title.data,
-            story = form.story.data,
-            main_image=form.main_image.data,
-            author = current_user,
-            date = date.today().strftime("%B %d, %Y"),
-        )
-        db.session.add(new_story)
-        db.session.commit()
+        #  Prepare story data
+        new_story = {
+            "country": form.country.data,
+            "city": form.city.data,
+            "title": form.title.data,
+            "story": form.story.data,
+            "main_image": form.main_image.data,
+            "author_id": current_user.id,
+            "date": date.today().strftime("%B %d, %Y"),
+        }
+        #  Insert story into Supabase
+        result = supabase.table("stories").insert(new_story).execute()
         return redirect(url_for('get_all_stories'))
+
     return render_template("edit-story.html", form=form, current_user=current_user)
 
 # Editing an existing story
 @app.route('/edit-story/<int:story_id>', methods=['GET', 'POST'])
 @admin_only
 def edit_story(story_id):
-    story = db.get_or_404(TravelStory, story_id)
-    edit_form = CreateTravelStoryForm(
-        country=story.country,
-        city=story.city,
-        title=story.title,
-        story=story.story,
-        main_image=story.main_image,
-    )
-    if edit_form.validate_on_submit():
-        story.country = edit_form.country.data
-        story.city = edit_form.city.data
-        story.title = edit_form.title.data
-        story.story = edit_form.story.data
-        story.main_image = edit_form.main_image.data
+    #  Retrieve story from Supabase
+    result = supabase.table("stories").select("*").eq("id", story_id).execute()
+    story = result.data[0] if result.data else None
 
-        db.session.commit()
-        return redirect(url_for('show_story', story_id=story.id))
+    if not story:
+        abort(404)
+
+    #  Pre-fill form with existing story data
+    edit_form = CreateTravelStoryForm(
+        country=story["country"],
+        city=story["city"],
+        title=story["title"],
+        story=story["story"],
+        main_image=story["main_image"],
+    )
+    #  Handle form submission
+    if edit_form.validate_on_submit():
+        updated_story = {
+            "country": edit_form.country.data,
+            "city": edit_form.city.data,
+            "title": edit_form.title.data,
+            "story": edit_form.story.data,
+            "main_image": edit_form.main_image.data,
+        }
+
+        #  Update story in Supabase
+        supabase.table("stories").update(updated_story).eq("id", story_id).execute()
+        return redirect(url_for('show_story', story_id=story_id))
     return render_template("edit-story.html", form=edit_form, is_edit=True, current_user=current_user)
 
 # Delete story
 @app.route('/delete/<int:story_id>')
 @admin_only
 def delete_story(story_id):
-    story_to_delete = db.get_or_404(TravelStory, story_id)
-    db.session.delete(story_to_delete)
-    db.session.commit()
+    #  Retrieve story from Supabase
+    result = supabase.table("stories").select("*").eq("id", story_id).execute()
+    story_to_delete = result.data[0] if result.data else None
+
+    if not story_to_delete:
+        abort(404)
+
+    #  Delete story from Supabase
+    supabase.table("stories").delete().eq("id", story_id).execute()
     return redirect(url_for('get_all_stories'))
 
 
@@ -241,10 +280,20 @@ def about():
 @app.route('/contact')
 def contact():
     return render_template('contact.html', current_user=current_user)
+
 @app.route('/admin')
 @admin_only
 def admin_panel():
     pass
+
+#  Test Db
+@app.route("/supabase-select")
+def supabase_select():
+    try:
+        response = supabase.table("stories").select("*").execute()
+        return {"data": response.data}
+    except Exception as e:
+        return {"error": str(e)}
 
 if __name__ == "__main__":
     app.run(
