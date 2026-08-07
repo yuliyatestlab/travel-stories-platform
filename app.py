@@ -160,16 +160,13 @@ def show_story(story_id):
     author_result = supabase.table("users").select("name").eq("id", requested_story["author_id"]).execute()
     requested_story["author_name"] = author_result.data[0]["name"] if author_result.data else "Unknown"
 
-    if not requested_story:
-        abort(404)
-
     #  Add the CommentForm to the route
     comment_form = CommentForm()
 
     if comment_form.validate_on_submit() and current_user.is_authenticated:
         new_comment_text = comment_form.comment_text.data
-        #  Insert comment into Supabase
-        insert_result = supabase.table("comments").insert({
+
+        supabase.table("comments").insert({
             "comment_text": new_comment_text,
             "comment_author_id": current_user.id,
             "story_id": story_id,
@@ -177,16 +174,15 @@ def show_story(story_id):
 
         return redirect(url_for("show_story", story_id=story_id))
 
-    #  Retrieve comment for this story
     comments_result = supabase.table("comments").select("*").eq("story_id", story_id).execute()
     comments = comments_result.data if comments_result.data else []
 
-    #  Attach author name to each comment
     for comment in comments:
         author_result = supabase.table("users").select("name").eq("id", comment["comment_author_id"]).execute()
         comment["author_name"] = author_result.data[0]["name"] if author_result.data else "Unknown"
 
     return render_template("story.html", story=requested_story, comments=comments, current_user=current_user, form=comment_form)
+
 
 #  Admin-only decorator
 def admin_only(f):
