@@ -48,34 +48,26 @@
                                     </div>
                                 </li>
                                 {% endfor %}
-
-                                {% if current_user.is_authenticated %}
-                                <div class="col-lg-8 col-md-10 mx-auto mt-5">
-                                    <div class="card shadow-sm border-0">
-                                        <div class="card-body">
-                                            <h5 class="card-title mb-3">Leave a comment</h5>
-                                            <form method="POST">
-                                                {{ form.hidden_tag() }}
-                                                <div class="form-group">
-                                                    {{ form.comment_text.label(class="form-label fw-semibold") }}
-                                                    {{ form.comment_text(class="form-control", rows="3", placeholder="Write your comment:  ") }}
-                                                </div>
-                                                <div class="text-end">
-                                                    {{ form.submit(class="btn btn-primary px-4") }}
-                                                </div>
-                                            </form>
-                                        </div>
-                                    </div>
-                                </div>
-                                {% else %}
-                                <div class="text-center mt-4">
-                                    <p class="text-muted">
-                                        Please <a href="{{ url_for('llogin') }}" class="text-decoration-none">Log In</a> to leave a comment.
-                                    </p>
-                                </div>
-                                {% endif %}
                             </ul>
                         </div>
+
+                        {% if current_user.is_authenticated %}
+                        <div class="col-lg-8 col-md-10 mx-auto mt-4">
+                            <form method="POST">
+                                {{ form.hidden_tag() }}
+                                <div class="mb-3">
+                                    {{ form.comment_text.label(class="form-label") }}
+                                    {{ form.comment_text(class="form-control", rows="3", placeholder="Write your comment:  ") }}
+                                </div>
+
+                                <button type="submit" class="btn btn-primary">Submit</button>
+                            </form>
+                        </div>
+                        {% else %}
+                        <p class="text-center mt-4">
+                            Please <a href="{{ url_for('login') }}">Log In</a> to leave a comment.
+                        </p>
+                        {% endif %}
                     </div>
                 </div>
             </div>
