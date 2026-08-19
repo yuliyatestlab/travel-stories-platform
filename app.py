@@ -150,7 +150,7 @@ def get_all_stories():
     stories = result.scalars().all()
     return render_template("index.html", all_stories=stories, current_user=current_user)
 
-@app.route('/story/<int:story_id>')
+@app.route('/story/<int:story_id>', methods=["GET", "POST"])
 def show_story(story_id):
     #  Retrieve a BlogPost from the database based on the post_id.
     requested_story = db.get_or_404(TravelStory, story_id)
