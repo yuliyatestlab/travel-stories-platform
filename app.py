@@ -147,7 +147,7 @@ def get_all_stories():
         story["author_name"] = author_result.data[0]["name"] if author_result.data else "Unknown"
     return render_template("index.html", all_stories=stories, current_user=current_user)
 
-@app.route('/story/<int:story_id>')
+@app.route('/story/<int:story_id>', methods=["GET", "POST"])
 def show_story(story_id):
     #  Retrieve a BlogPost from the database based on the post_id.
     result = supabase.table("stories").select("*").eq("id", story_id).execute()
