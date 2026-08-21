@@ -165,9 +165,15 @@ def show_story(story_id):
         )
         db.session.add(new_comment)
         db.session.commit()
+        db.session.refresh(requested_story)
         return redirect(url_for("show_story", story_id=story_id))
 
-    return render_template("story.html", story=requested_story, current_user=current_user, form=comment_form)
+    #  Download comments from DB
+    comments = db.session.execute(
+        db.select(Comment).where(Comment.story_id == story_id)
+    ).scalars().all()
+
+    return render_template("story.html", story=requested_story, comments=comments, current_user=current_user, form=comment_form)
 
 #  Admin-only decorator
 def admin_only(f):
