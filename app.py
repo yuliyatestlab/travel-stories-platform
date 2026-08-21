@@ -164,6 +164,20 @@ def show_story(story_id):
     comment_form = CommentForm()
 
     if comment_form.validate_on_submit() and current_user.is_authenticated:
+        new_comment = Comment(
+            comment_text=comment_form.comment_text.data,
+            comment_author=current_user,
+            parent_story=requested_story,
+        )
+        db.session.add(new_comment)
+        db.session.commit()
+        db.session.refresh(requested_story)
+        return redirect(url_for("show_story", story_id=story_id))
+
+    #  Download comments from DB
+    comments = db.session.execute(
+        db.select(Comment).where(Comment.story_id == story_id)
+    ).scalars().all()
         new_comment_text = comment_form.comment_text.data
         #  Insert comment into Supabase
         insert_result = supabase.table("comments").insert({
