@@ -44,7 +44,7 @@
                                     </div>
                                     <div class="commentText">
                                         <p>{{ comment.comment_text|safe }}</p>
-                                        <span class="date sub-text">{{ comment.comment_author.name }}</span>
+                                        <span class="date sub-text">{{ comment.author_name }}</span>
                                     </div>
                                 </li>
                                 {% endfor %}
@@ -74,3 +74,4 @@
         </article>
 
 {% include "footer.html" %}
+

@@ -11,10 +11,10 @@ import os
 from supabase import create_client
 from dotenv import load_dotenv
 
-load_dotenv(dotenv_path="/home/yuliyatestlab/travel-stories-platform/.env")
+load_dotenv(dotenv_path="/Users/admin/PycharmProjects/travel-stories-platform/.env")
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_PUBLISHABLE_KEY")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
 print("DEBUG SUPABASE_URL:", SUPABASE_URL)
 print("DEBUG SUPABASE_KEY:", SUPABASE_KEY)
@@ -76,11 +76,24 @@ def register():
             method='pbkdf2:sha256',
             salt_length=8
         )
+        #Handle avatar upload
+        avatar_file = form.avatar.data
+        avatar_url = None
+
+        if avatar_file:
+            file_bytes = avatar_file.read()
+            file_name = f"{form.email.data}.png"
+            #  Upload to Supabase
+            supabase.storage.form_("avatars").upload(file_name, file_bytes)
+            #  Get public URL
+            avatar_url = supabase.storage.form_("avatars").get_public_url(file_name)
+
         #  Insert new user into Supabase
         insert_result = supabase.table("users").insert({
             "name": form.name.data,
             "email": form.email.data,
-            "password": hash_and_salted_password
+            "password": hash_and_salted_password,
+            "avatar_url": avatar_url
         }).execute()
 
         new_user_data = insert_result.data[0]
@@ -153,31 +166,17 @@ def show_story(story_id):
     result = supabase.table("stories").select("*").eq("id", story_id).execute()
     requested_story = result.data[0] if result.data else None
 
+    if not requested_story:
+        abort(404)
+
     # Attach author name
     author_result = supabase.table("users").select("name").eq("id", requested_story["author_id"]).execute()
     requested_story["author_name"] = author_result.data[0]["name"] if author_result.data else "Unknown"
 
-    if not requested_story:
-        abort(404)
-
     #  Add the CommentForm to the route
     comment_form = CommentForm()
-
+    #  Handle comment submission
     if comment_form.validate_on_submit() and current_user.is_authenticated:
-        new_comment = Comment(
-            comment_text=comment_form.comment_text.data,
-            comment_author=current_user,
-            parent_story=requested_story,
-        )
-        db.session.add(new_comment)
-        db.session.commit()
-        db.session.refresh(requested_story)
-        return redirect(url_for("show_story", story_id=story_id))
-
-    #  Download comments from DB
-    comments = db.session.execute(
-        db.select(Comment).where(Comment.story_id == story_id)
-    ).scalars().all()
         new_comment_text = comment_form.comment_text.data
         #  Insert comment into Supabase
         insert_result = supabase.table("comments").insert({
