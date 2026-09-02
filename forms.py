@@ -2,11 +2,16 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField, PasswordField
 from wtforms.validators import DataRequired, URL
 from flask_ckeditor import CKEditorField
+from flask_wtf.file import FileField, FileAllowed
 
 class RegisterForm(FlaskForm):
     email = StringField("Email", validators=[DataRequired()])
     password = PasswordField("Password", validators=[DataRequired()])
     name = StringField("Name", validators=[DataRequired()])
+    avatar = FileField(
+        "Profile Image",
+        validators=[FileAllowed(["ipg", "jpeg", "png"], "Image only!")]
+    )
     submit = SubmitField("SIGN UP")
 
 class LoginForm(FlaskForm):
