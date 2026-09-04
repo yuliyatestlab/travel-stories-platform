@@ -136,6 +136,7 @@ def login():
                 name=user["name"],
                 email=user["email"],
                 password=user["password"],
+                avatar_url=user.get("avatar_url"),
                 is_admin=user.get("is_admin", False)
             )
             login_user(logged_user)
