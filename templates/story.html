@@ -39,9 +39,14 @@
                             <ul class="commentList">
                                 {% for comment in comments %}
                                 <li>
-                                    <div class="commentImage">
-                                        <img src="{{ url_for('static', filename='assets/img/defaulte-profile.jpg') }}"/>
+                                    <div class="commentAvatar">
+                                        <img src="{{ comment.author_avatar or url_for('static', filename='assets/img/default-avatar.png') }}"
+                                             class="comment-avatar">
                                     </div>
+                                    {# Temporary hidden #}
+                                    {#  <div class="commentImage">
+                                        <img src="{{ url_for('static', filename='assets/img/defaulte-profile.jpg') }}"/>
+                                    </div> #}
                                     <div class="commentText">
                                         <p>{{ comment.comment_text|safe }}</p>
                                         <span class="date sub-text">{{ comment.author_name }}</span>
