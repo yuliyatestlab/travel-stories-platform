@@ -49,11 +49,12 @@ def load_user(user_id):
 
 
 class User(UserMixin):
-    def __init__(self, id, name, email, password, is_admin=False):
+    def __init__(self, id, name, email, password, avatar_url=None, is_admin=False):
         self.id = id
         self.name = name
         self.email = email
         self.password = password
+        self.avatar_url = avatar_url
         self.is_admin = is_admin
 
 
