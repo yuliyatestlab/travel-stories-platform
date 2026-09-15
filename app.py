@@ -195,8 +195,13 @@ def show_story(story_id):
 
     #  Attach author name to each comment
     for comment in comments:
-        author_result = supabase.table("users").select("name").eq("id", comment["comment_author_id"]).execute()
-        comment["author_name"] = author_result.data[0]["name"] if author_result.data else "Unknown"
+        author_result = supabase.table("users").select("name", "avatar_url").eq("id", comment["comment_author_id"]).execute()
+        if author_result.data:
+            comment["author_name"] = author_result.data[0]["name"]
+            comment["author_avatar"] = author_result.data[0]["avatar_url"]
+        else:
+            comment["author_name"] = "Unknown"
+            comment["author_avatar"] = None
 
     return render_template("story.html", story=requested_story, comments=comments, current_user=current_user, form=comment_form)
 

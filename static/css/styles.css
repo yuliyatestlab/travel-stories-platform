@@ -10803,3 +10803,10 @@ header.masthead .post-heading .meta a {
   object-fit: cover;
   margin-left: 10px;
 }
+.comment-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  obdject-fit: cover;
+  margin-right: 10px;
+}
